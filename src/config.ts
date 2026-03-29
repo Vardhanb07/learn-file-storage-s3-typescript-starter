@@ -11,6 +11,7 @@ export type ApiConfig = {
   s3Region: string;
   s3CfDistribution: string;
   port: string;
+  MAX_UPLOAD_SIZE: number;
 };
 
 const pathToDB = envOrThrow("DB_PATH");
@@ -22,6 +23,7 @@ const s3Bucket = envOrThrow("S3_BUCKET");
 const s3Region = envOrThrow("S3_REGION");
 const s3CfDistribution = envOrThrow("S3_CF_DISTRO");
 const port = envOrThrow("PORT");
+const MAX_UPLOAD_SIZE = 10 << 20;
 
 const db = newDatabase(pathToDB);
 
@@ -35,6 +37,7 @@ export const cfg: ApiConfig = {
   s3Region: s3Region,
   s3CfDistribution: s3CfDistribution,
   port: port,
+  MAX_UPLOAD_SIZE: MAX_UPLOAD_SIZE,
 };
 
 function envOrThrow(key: string) {
