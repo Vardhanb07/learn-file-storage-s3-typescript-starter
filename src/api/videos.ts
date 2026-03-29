@@ -1,10 +1,10 @@
 import { respondWithJSON } from "./json";
 import { type ApiConfig } from "../config";
-import { type BunRequest } from "bun";
+import { file, type BunRequest } from "bun";
 import { BadRequestError, UserForbiddenError } from "./errors";
 import { getBearerToken, validateJWT } from "../auth";
 import { getVideo, updateVideo } from "../db/videos";
-import path, { extname } from "node:path";
+import path from "node:path";
 import { uploadToS3 } from "./s3";
 
 type ProbeOut = {
@@ -46,6 +46,33 @@ export async function getVideoAspectRatio(
   return "other";
 }
 
+async function processVideoForFastStart(filePath: string): Promise<string> {
+  const file = Bun.file(filePath);
+  const { name, ext } = path.parse(filePath);
+  const outputFilePath = path.join("/tmp", `${name}.processed.${ext.slice(1)}`);
+  await Bun.write(outputFilePath, file);
+  const proc = Bun.spawnSync([
+    "ffmpeg",
+    "-i",
+    filePath,
+    "-movflags",
+    "faststart",
+    "-map_metadata",
+    "0",
+    "-codec",
+    "copy",
+    "-f",
+    "mp4",
+    outputFilePath,
+    "-y",
+  ]);
+  const stderr = proc.stderr.toString();
+  if (proc.exitCode !== 0) {
+    throw new Error(stderr);
+  }
+  return outputFilePath;
+}
+
 export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const { videoId } = req.params as { videoId?: string };
   if (!videoId) {
@@ -77,14 +104,16 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const filePath = path.join("/tmp", `${videoId}.${extName}`);
   await Bun.write(filePath, file);
   const prefix = await getVideoAspectRatio(filePath);
+  const processedFilePath = await processVideoForFastStart(filePath);
   const key = `${prefix}/${videoId}.${extName}`;
-  await uploadToS3(cfg, key, filePath, file.type);
+  await uploadToS3(cfg, key, processedFilePath, file.type);
   const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${key}`;
   updateVideo(cfg.db, {
     ...video,
     videoURL,
   });
   await Bun.file(filePath).delete();
+  await Bun.file(processedFilePath).delete();
   return respondWithJSON(200, {
     ...video,
     videoURL,

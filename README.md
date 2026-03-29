@@ -57,7 +57,7 @@ You'll need to update values in the `.env` file to match your configuration, but
 ## 3. Run the server
 
 ```bash
-bun run src/index.ts
+bun dev
 ```
 
 - You should see a new database file `tubely.db` created in the root directory.
