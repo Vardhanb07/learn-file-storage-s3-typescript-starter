@@ -5,6 +5,7 @@ import type { ApiConfig } from "../config";
 import { type BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 
 type Thumbnail = {
   data: ArrayBuffer;
@@ -53,7 +54,7 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   if (!(thumbnail instanceof File)) {
     throw new BadRequestError("Thumbnail is not a file");
   }
-  if (thumbnail.size > cfg.MAX_UPLOAD_SIZE) {
+  if (thumbnail.size > cfg.MAX_THUMBNAIL_UPLOAD_SIZE) {
     throw new BadRequestError("File size exceeds 10MB");
   }
   const metaData = getVideo(cfg.db, videoId);
@@ -61,10 +62,16 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     throw new UserForbiddenError("This is resource is forbidden");
   }
   const mediaType = thumbnail.type;
-  const extName = path.extname(thumbnail.name);
-  console.log(`${videoId}.${mediaType}`);
-  const filePath = path.join(cfg.assetsRoot, `${videoId}.${extName}`);
-  Bun.write(filePath, thumbnail);
+  const extName = path.extname(thumbnail.name).slice(1);
+  const allowedTypes = ["png", "jpeg"];
+  if (!allowedTypes.includes(extName)) {
+    throw new BadRequestError(
+      `files apart from images are not allowed, file type: ${extName}`,
+    );
+  }
+  const fileName = randomBytes(32).toString("base64url");
+  const filePath = path.join(cfg.assetsRoot, `${fileName}.${extName}`);
+  await Bun.write(filePath, thumbnail);
   const data = await thumbnail.arrayBuffer();
   videoThumbnails.set(videoId, {
     data,
