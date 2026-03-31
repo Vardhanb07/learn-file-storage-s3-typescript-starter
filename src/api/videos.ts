@@ -1,9 +1,9 @@
 import { respondWithJSON } from "./json";
 import { type ApiConfig } from "../config";
-import { file, type BunRequest } from "bun";
+import { type BunRequest } from "bun";
 import { BadRequestError, UserForbiddenError } from "./errors";
 import { getBearerToken, validateJWT } from "../auth";
-import { getVideo, updateVideo } from "../db/videos";
+import { getVideo, updateVideo, type Video } from "../db/videos";
 import path from "node:path";
 import { uploadToS3 } from "./s3";
 
@@ -107,15 +107,12 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const processedFilePath = await processVideoForFastStart(filePath);
   const key = `${prefix}/${videoId}.${extName}`;
   await uploadToS3(cfg, key, processedFilePath, file.type);
-  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${key}`;
+  const videoURL = `${cfg.s3CfDistribution}/${key}`;
   updateVideo(cfg.db, {
     ...video,
     videoURL,
   });
   await Bun.file(filePath).delete();
   await Bun.file(processedFilePath).delete();
-  return respondWithJSON(200, {
-    ...video,
-    videoURL,
-  });
+  return respondWithJSON(200, video);
 }

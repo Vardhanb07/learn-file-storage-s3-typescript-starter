@@ -16,6 +16,7 @@ export type ApiConfig = {
   s3Client: S3Client;
   MAX_THUMBNAIL_UPLOAD_SIZE: number;
   MAX_VIDEO_UPLOAD_SIZE: number;
+  S3_EXPIRE_TIME: number;
 };
 
 const pathToDB = envOrThrow("DB_PATH");
@@ -30,6 +31,7 @@ const port = envOrThrow("PORT");
 const MAX_THUMBNAIL_UPLOAD_SIZE = 10 << 20;
 const MAX_VIDEO_UPLOAD_SIZE = 1 << 30;
 const s3Key = envOrThrow("AWS_SECRET_ACCESS_KEY");
+const S3_EXPIRE_TIME = parseInt(envOrThrow("S3_EXPIRE_TIME"));
 
 const db = newDatabase(pathToDB);
 
@@ -47,6 +49,7 @@ export const cfg: ApiConfig = {
   MAX_THUMBNAIL_UPLOAD_SIZE: MAX_THUMBNAIL_UPLOAD_SIZE,
   MAX_VIDEO_UPLOAD_SIZE: MAX_VIDEO_UPLOAD_SIZE,
   s3Key: s3Key,
+  S3_EXPIRE_TIME: S3_EXPIRE_TIME,
 };
 
 function envOrThrow(key: string) {
